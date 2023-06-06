@@ -1580,7 +1580,7 @@ namespace TeslaLogger
                     if (car.CurrentJSON.current_TLGeofenceTLWB)
                     {
                         car.solarChargingBase?.setPower(charger_power_calc_w, charge_energy_added, battery_level);
-                        car.solarChargingBase?.setGrid(car.CurrentJSON.current_charger_actual_current, car.CurrentJSON.current_charger_voltage, car.CurrentJSON.current_charger_phases_calc);
+                        car.solarChargingBase?.setGrid(car.CurrentJSON.current_charger_voltage, car.CurrentJSON.current_charger_actual_current, car.CurrentJSON.current_charger_phases_calc);
                         car.solarChargingBase?.Charging(true);
                     }
                     return true;

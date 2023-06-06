@@ -16,7 +16,7 @@ namespace TeslaLogger
 
         string host = "";
         int port = 1883;
-        int LP = 3;
+        int LP = 1;
         string ClientId = "Teslalogger-OpenWB";
         static byte[] msg1 = Encoding.ASCII.GetBytes(("1"));
         static byte[] msg0 = Encoding.ASCII.GetBytes(("0"));
@@ -35,7 +35,7 @@ namespace TeslaLogger
                     dynamic r = JsonConvert.DeserializeObject(mqttSettingsJson);
                     host = r["mqtt_host"];
                     port = (int)r["mqtt_port"];
-                    LP = 3;
+                    LP = c.charge_point;
                     ClientId = r["mqtt_clientid"];
                     user = r["mqtt_user"];
                     passwd = r["mqtt_passwd"];
@@ -166,12 +166,12 @@ namespace TeslaLogger
             catch (Exception ex) { Log(ex.ToString()); }
         }
 
-        internal override void setGrid(int chager_voltage, int charger_current, int charger_phases)
+        internal override void setGrid(int charger_voltage, int charger_current, int charger_phases)
         {
-            base.setGrid(chager_voltage, charger_current, charger_phases);
+            base.setGrid(charger_voltage, charger_current, charger_phases);
 
-            SendVoltage(chager_voltage, charger_phases);
-            SendCurrent(chager_voltage, charger_phases);
+            SendVoltage(charger_voltage, charger_phases);
+            SendCurrent(charger_current, charger_phases);
         }
 
         void SendWatt(int Watt)
@@ -193,13 +193,25 @@ namespace TeslaLogger
                 {
                     client.Publish($"openWB/set/lp/{LP}/VPhase1", V);
                 }
+                else
+                {
+                    client.Publish($"openWB/set/lp/{LP}/VPhase1", msg0);
+                }
                 if (Phases > 1)
                 {
                     client.Publish($"openWB/set/lp/{LP}/VPhase2", V);
                 }
+                else
+                {
+                    client.Publish($"openWB/set/lp/{LP}/VPhase2", msg0);
+                }
                 if (Phases > 2)
                 {
                     client.Publish($"openWB/set/lp/{LP}/VPhase3", V);
+                }
+                else
+                {
+                    client.Publish($"openWB/set/lp/{LP}/VPhase3", msg0);
                 }
             }
             catch (Exception ex) { Log(ex.ToString()); }
@@ -214,13 +226,25 @@ namespace TeslaLogger
                 {
                     client.Publish($"openWB/set/lp/{LP}/APhase1", A);
                 }
+                else
+                {
+                    client.Publish($"openWB/set/lp/{LP}/APhase1", msg0);
+                }
                 if (Phases > 1)
                 {
                     client.Publish($"openWB/set/lp/{LP}/APhase2", A);
                 }
+                else
+                {
+                    client.Publish($"openWB/set/lp/{LP}/APhase2", msg0);
+                }
                 if (Phases > 2)
                 {
                     client.Publish($"openWB/set/lp/{LP}/APhase3", A);
+                }
+                else
+                {
+                    client.Publish($"openWB/set/lp/{LP}/APhase3", msg0);
                 }
             }
             catch (Exception ex) { Log(ex.ToString()); }

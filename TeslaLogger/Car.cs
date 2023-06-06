@@ -117,7 +117,7 @@ namespace TeslaLogger
         private bool useTaskerToken = true;
         internal string wheel_type = "";
 
-        private int charge_point = -1;
+        public int charge_point = -1;
 
         public double WhTR
         {
