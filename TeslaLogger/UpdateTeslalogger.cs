@@ -95,6 +95,8 @@ namespace TeslaLogger
 
                 CheckDBCharset();
 
+                CheckDBSchema_areaa();
+
                 CheckDBSchema_can();
 
                 CheckDBSchema_candata();
