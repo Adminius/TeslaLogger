@@ -161,6 +161,7 @@
     <Compile Include="ElectricityMeterShelly3EM.cs" />
     <Compile Include="ElectricityMeterShellyEM.cs" />
     <Compile Include="ElectricityMeterTeslaGen3WallConnector.cs" />
+    <Compile Include="ElectricityMeterMQTT.cs" />
     <Compile Include="FileManager.cs" />
     <Compile Include="GeocodeCache.cs" />
     <Compile Include="MQTTClient.cs" />

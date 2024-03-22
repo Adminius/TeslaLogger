@@ -49,6 +49,8 @@ namespace TeslaLogger
                 return new ElectricityMeterShellyEM(host, paramater);
             else if (type == "keba")
                 return new ElectricityMeterKeba(host, paramater);
+            else if (type == "MQTT")
+                return new ElectricityMeterMQTT(host, paramater);
 
             return null;
         }
