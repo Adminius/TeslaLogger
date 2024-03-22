@@ -133,6 +133,12 @@ namespace TeslaLogger
 
                 CheckDBSchema_TPMS();
 
+                CheckDBSchema_Battery();
+
+                CheckDBSchema_Cruisestate();
+
+                CheckDBSchema_Alerts();
+
                 GetChargingHistoryV2Service.CheckSchema();
 
                 Logfile.Log("DBSchema Update finished.");
@@ -145,7 +151,7 @@ namespace TeslaLogger
                 {
                     Logfile.Log("DBView Update (Task) started.");
                     CheckDBViews();
-                    if (!DBHelper.TableExists("trip") || !DBHelper.ColumnExists("trip", "wheel_type"))
+                    if (!DBHelper.TableExists("trip") || !DBHelper.ColumnExists("trip", "AP_sec_sum"))
                     {
                         UpdateDBViews();
                     }
@@ -257,6 +263,12 @@ namespace TeslaLogger
 
                 DBHelper.EnableMothership();
 
+                if (KVS.Get("UpdateAllDrivestateData", out int UpdateAllDrivestateDataInt) == KVS.NOT_FOUND || UpdateAllDrivestateDataInt < 2)
+                {
+                    UpdateAllDrivestateDateThread();
+                }
+
+
                 timer = new System.Threading.Timer(FileChecker, null, 10000, 5000);
 
                 Chmod("/var/www/html/admin/wallpapers", 777);
@@ -293,6 +305,131 @@ namespace TeslaLogger
             {
                 ex.ToExceptionless().FirstCarUserID().Submit();
                 Logfile.Log("Error in update: " + ex.ToString());
+            }
+        }
+
+        private static void CheckDBSchema_Alerts()
+        {
+            if (!DBHelper.TableExists("alerts"))
+            {
+                string sql = @"CREATE TABLE `alerts` (
+                      `CarID` int(11) NOT NULL,
+                      `startedAt` datetime NOT NULL,
+                      `nameID` int(11) NOT NULL,
+                      `endedAt` datetime DEFAULT NULL,
+                      `ID` int(11) NOT NULL AUTO_INCREMENT,
+                      PRIMARY KEY (`CarID`,`startedAt`,`nameID`),
+                      KEY `ID` (`ID`)
+                    ) ENGINE=InnoDB AUTO_INCREMENT=1778 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                    ";
+
+                Logfile.Log(sql);
+                UpdateTeslalogger.AssertAlterDB();
+                DBHelper.ExecuteSQLQuery(sql);
+                Logfile.Log("CREATE TABLE OK");
+            }
+
+            if (!DBHelper.TableExists("alert_names"))
+            {
+                string sql = @"CREATE TABLE `alert_names` (
+                      `ID` int(11) NOT NULL AUTO_INCREMENT,
+                      `Name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+                      PRIMARY KEY (`ID`)
+                    ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
+
+                Logfile.Log(sql);
+                UpdateTeslalogger.AssertAlterDB();
+                DBHelper.ExecuteSQLQuery(sql);
+                Logfile.Log("CREATE TABLE OK");
+            }
+
+            if (!DBHelper.TableExists("alert_audiences"))
+            {
+                string sql = @"CREATE TABLE `alert_audiences` (
+                      `alertsID` int(11) NOT NULL,
+                      `audienceID` tinyint(4) NOT NULL,
+                      PRIMARY KEY (`alertsID`,`audienceID`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
+
+                Logfile.Log(sql);
+                UpdateTeslalogger.AssertAlterDB();
+                DBHelper.ExecuteSQLQuery(sql);
+                Logfile.Log("CREATE TABLE OK");
+            }
+        }
+
+        private static void CheckDBSchema_Battery()
+        {
+            if (!DBHelper.TableExists("battery"))
+            {
+                string sql = @"CREATE TABLE `battery` (
+                      `CarID` int(11) NOT NULL,
+                      `date` datetime NOT NULL,
+                      `PackVoltage` double DEFAULT NULL,
+                      `PackCurrent` double DEFAULT NULL,
+                      `IsolationResistance` double DEFAULT NULL,
+                      `NumBrickVoltageMax` smallint(6) DEFAULT NULL,
+                      `BrickVoltageMax` double DEFAULT NULL,
+                      `NumBrickVoltageMin` smallint(6) DEFAULT NULL,
+                      `BrickVoltageMin` double DEFAULT NULL,
+                      `ModuleTempMax` double DEFAULT NULL,
+                      `ModuleTempMin` double DEFAULT NULL,
+                      `LifetimeEnergyUsed` double DEFAULT NULL,
+                      `LifetimeEnergyUsedDrive` double DEFAULT NULL,
+                      PRIMARY KEY (`CarID`,`date`)
+                    )";
+
+                Logfile.Log(sql);
+                UpdateTeslalogger.AssertAlterDB();
+                DBHelper.ExecuteSQLQuery(sql);
+                Logfile.Log("CREATE TABLE OK");
+            }
+
+            if (!DBHelper.TableExists("celltemperature"))
+            {
+                string sql = @"CREATE 
+                    VIEW `celltemperature` AS
+                        SELECT 
+                            `can`.`CarID` AS `carid`,
+                            `can`.`datum` AS `date`,
+                            `can`.`val` AS `CellTemperature`,
+                            1 AS `source`
+                        FROM
+                            `can`
+                        WHERE
+                            `can`.`id` = 3 
+                        UNION SELECT 
+                            `battery`.`CarID` AS `carid`,
+                            `battery`.`date` AS `datum`,
+                            `battery`.`ModuleTempMin` AS `CellTemperature`,
+                            2 AS `source`
+                        FROM
+                            `battery`
+                        WHERE
+                            `battery`.`ModuleTempMin` IS NOT NULL";
+
+                Logfile.Log(sql);
+                UpdateTeslalogger.AssertAlterDB();
+                DBHelper.ExecuteSQLQuery(sql);
+                Logfile.Log("CREATE VIEW OK");
+            }
+        }
+
+        private static void CheckDBSchema_Cruisestate()
+        {
+            if (!DBHelper.TableExists("cruisestate"))
+            {
+                string sql = @"CREATE TABLE `cruisestate` (
+                  `CarID` int(11) NOT NULL,
+                  `date` datetime NOT NULL,
+                  `state` tinyint(4) DEFAULT NULL,
+                  PRIMARY KEY (`CarID`,`date`)
+                )";
+
+                Logfile.Log(sql);
+                UpdateTeslalogger.AssertAlterDB();
+                DBHelper.ExecuteSQLQuery(sql);
+                Logfile.Log("CREATE TABLE OK");
             }
         }
 
@@ -544,6 +681,28 @@ PRIMARY KEY(id)
                 ex.ToExceptionless().FirstCarUserID().Submit();
                 Logfile.Log(ex.ToString());
             }
+
+            if (!DBHelper.ColumnExists("pos", "AP"))
+            {
+                Logfile.Log("ALTER TABLE pos ADD COLUMN AP TINYINT(1) NULL");
+                AssertAlterDB();
+                DBHelper.ExecuteSQLQuery("ALTER TABLE pos ADD COLUMN AP TINYINT(1) NULL", 300);
+
+                new Thread(() =>
+                {
+                    while (Car.Allcars.Count == 0)
+                    {
+                        Thread.Sleep(1000);
+                    }
+                    Thread.Sleep(5000);
+                    for (int x=0; x<Car.Allcars.Count; x++)
+                    {
+                        Car c = Car.Allcars[x];
+                        DBHelper.UpdateAllPOS_AP_Column(c.CarInDB, new DateTime(2024, 2, 1), DateTime.Now);
+                    }
+                    
+                }).Start();
+            }
         }
 
         private static void CheckDBSchema_mothershipcommands()
@@ -660,6 +819,31 @@ PRIMARY KEY(id)
                 AssertAlterDB();
                 DBHelper.ExecuteSQLQuery(@"ALTER TABLE `drivestate` ADD COLUMN `wheel_type` VARCHAR(40) NULL DEFAULT NULL", 600);
             }
+
+            if (!DBHelper.ColumnExists("drivestate", "AP_sec_sum"))
+            {
+                Logfile.Log("ALTER TABLE drivestate ADD Column AP_sec_sum");
+                AssertAlterDB();
+                DBHelper.ExecuteSQLQuery(@"ALTER TABLE `drivestate` ADD COLUMN `AP_sec_sum` int NULL DEFAULT NULL", 600);
+                DBHelper.ExecuteSQLQuery(@"ALTER TABLE `drivestate` ADD COLUMN `AP_sec_max` int NULL DEFAULT NULL", 600);
+                DBHelper.ExecuteSQLQuery(@"ALTER TABLE `drivestate` ADD COLUMN `TPMS_FL` double NULL DEFAULT NULL", 600);
+                DBHelper.ExecuteSQLQuery(@"ALTER TABLE `drivestate` ADD COLUMN `TPMS_FR` double NULL DEFAULT NULL", 600);
+                DBHelper.ExecuteSQLQuery(@"ALTER TABLE `drivestate` ADD COLUMN `TPMS_RL` double NULL DEFAULT NULL", 600);
+                DBHelper.ExecuteSQLQuery(@"ALTER TABLE `drivestate` ADD COLUMN `TPMS_RR` double NULL DEFAULT NULL", 600);
+            }
+        }
+
+        private static void UpdateAllDrivestateDateThread()
+        {
+            new Thread(() =>
+            {
+                while (Car.Allcars.Count == 0)
+                {
+                    Thread.Sleep(1000);
+                }
+                Thread.Sleep(5000);
+                DBHelper.UpdateAllDrivestateData();
+            }).Start();
         }
 
         private static void CheckDBSchema_chargingstate()
@@ -985,6 +1169,20 @@ PRIMARY KEY(id)
                 AssertAlterDB();
                 DBHelper.ExecuteSQLQuery(@"ALTER TABLE `cars` ADD `needFleetAPI` TINYINT UNSIGNED NOT NULL DEFAULT '0'", 600);
             }
+
+            if (!DBHelper.ColumnExists("cars", "access_type"))
+            {
+                Logfile.Log("ALTER TABLE cars ADD Column access_type");
+                AssertAlterDB();
+                DBHelper.ExecuteSQLQuery(@"ALTER TABLE `cars` ADD `access_type` varchar(20) NULL", 600);
+            }
+
+            if (!DBHelper.ColumnExists("cars", "virtualkey")) 
+            {
+                Logfile.Log("ALTER TABLE cars ADD Column virtualkey");
+                AssertAlterDB();
+                DBHelper.ExecuteSQLQuery(@"ALTER TABLE `cars` ADD `virtualkey` TINYINT UNSIGNED  NULL DEFAULT '0'", 600);
+            }
         }
 
         private static void CheckDBSchema_can()
@@ -1246,6 +1444,11 @@ PRIMARY KEY(id)
                 Logfile.Log("End update");
 
                 Logfile.Log("Rebooting");
+
+                foreach (Car car in Car.Allcars)
+                {
+                    car.CurrentJSON.ToKVS();
+                }
 
                 Tools.ExecMono("reboot", "");
             }
@@ -1555,6 +1758,13 @@ PRIMARY KEY(id)
                         string value = line.Substring(pos + 1);
 
                         // Logfile.Log("Key insert: " + key);
+
+                        if (value.StartsWith("\"") && value.EndsWith("\""))
+                        {
+                            value = value.Substring(1, value.Length - 2);
+                        }
+
+                        value = value.Replace("\"_QQ_\"", "\"");
 
                         if (ht.ContainsKey(key))
                         {
@@ -1969,6 +2179,13 @@ PRIMARY KEY(id)
                                 s = ReplaceTitleTag(s, "Alle Verbräuche - ScanMyTesla", dictLanguage);
                                 s = ReplaceLanguageTags(s, new string[] {
                                     "Außentemperatur [°C]","Zelltemperatur [°C]","Alle Verbräuche - ScanMyTesla"
+                                }, dictLanguage, true);
+                            }
+                            else if (f.EndsWith("Vehicle Alerts.json", StringComparison.Ordinal))
+                            {
+                                s = ReplaceTitleTag(s, "Fahrzeug Fehler", dictLanguage);
+                                s = ReplaceLanguageTags(s, new string[] {
+                                    "Fehler", "Häufigkeit"
                                 }, dictLanguage, true);
                             }
                             else
@@ -2484,6 +2701,12 @@ PRIMARY KEY(id)
                             else
                             {
                                 Logfile.Log("Rebooting");
+
+                                foreach (Car car in Car.Allcars)
+                                {
+                                    car.CurrentJSON.ToKVS();
+                                }
+
                                 Tools.ExecMono("reboot", "");
                             }
                         }

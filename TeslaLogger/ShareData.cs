@@ -122,7 +122,7 @@ WHERE
         fast_charger_present
         OR address LIKE 'Supercharger%'
         OR address LIKE 'Ionity%'
-        OR max_charger_power > 25
+        OR max_charger_power > 19
     )
 ORDER BY
     StartDate";
@@ -254,16 +254,15 @@ SELECT
     MAX(battery_heater),
     (
     SELECT
-        val
+        CellTemperature
     FROM
-        can
+        celltemperature
     WHERE
-        can.carid = @CarID
-        AND can.datum < charging.Datum
-        AND can.datum > DATE_ADD(charging.Datum, INTERVAL -3 MINUTE)
-        AND id = 3
+        celltemperature.carid = @CarID
+        AND celltemperature.date < charging.Datum
+        AND celltemperature.date > DATE_ADD(charging.Datum, INTERVAL -4 MINUTE)
     ORDER BY
-        can.datum DESC
+        celltemperature.date DESC
 LIMIT 1
 ) AS cell_temp
 FROM
